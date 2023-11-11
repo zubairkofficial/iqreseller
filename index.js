@@ -5,7 +5,7 @@ let mongoose = require('mongoose');
 let SalesOrder = require('./Models/SalesOrder');
 let Page = require('./Models/Page');
 
-const uri = 'mongodb+srv://thezubairkhandeveloper:2DJlCMfEGVYrIuZJ@altatech.2yraawe.mongodb.net/albatechnologies?retryWrites=true&w=majority';
+const uri = 'mongodb+srv://coreyd:v7j8A6zu1WNJTP6W@cluster0.ef0zi.mongodb.net/altatechnologies?retryWrites=true&w=majority';
 mongoose.connect(uri).then(data => {
     console.log(`Conneced to Mongodb! Database name: ${data.connections[0].name}`);
 }).catch(err => {
@@ -17,7 +17,7 @@ const app = express()
 const PORT = 3000;
 let currentSessionToken = null;
 const pageId = "6549f5951587067fed0ab814";
-const sessionExpiry = 300000; // 5 Minutes
+const sessionExpiry = 30000; // 5 Minutes
 // const sessionExpiry = 10000; // 10 Seconds
 
 app.use(express.json());
@@ -59,14 +59,14 @@ const getSessionToken = () => {
     let data = {
         APIToken: APIToken,
     }
-    axios.post(`${ basePath }api/IntegrationAPI/Session`, data, defaultHeaders).then(response => {
+    axios.post(`${ basePath }api/IntegrationAPI/Session`, data, defaultHeaders).then(async response => {
         currentSessionToken = response.data.Data;
         updateHeaders();
         updateRequestHeaders();
         getKanbanUser();
-        setInterval(async () => {
+        setTimeout(async () => {
             await getSOsList();
-        }, 30000);
+        }, 10000);
         console.log("Token Created::", currentSessionToken);
     }).catch(error => {
         console.log(error);
@@ -90,6 +90,7 @@ const getSOsList = async () => {
         console.log("Error", error);
     });
     if(pageNo > 0){
+        console.log(`Fetching Data From Page::${ pageNo }`);
         axios.get(`${ apiPath }SO/XML/GetSOs?Page=${pageNo}&PageSize=100&SortBy=0`, requestHeaders).then(response => {
             let xmlData = response.data;
             xml2js.parseString(xmlData, async (err, result) => {
@@ -97,7 +98,6 @@ const getSOsList = async () => {
                     console.error("Error parsing XML");
                     return;
                 }
-                console.log("Request Completed");
                 let jm = result.ArrayOfSO.SO.filter(so => so.rep[0].includes("JM"));
                 console.log("JM Length:: ", jm.length);
                 jm.forEach(sales_order => {
@@ -131,7 +131,9 @@ const getSOsList = async () => {
                         });
                     });
                 });
-                await Page.findByIdAndUpdate({"_id":pageId}, {"page_no": parseInt(pageNo) + 1});
+                if(result.ArrayOfSO.SO.length === 100){
+                    await Page.findByIdAndUpdate({"_id":pageId}, {"page_no": parseInt(pageNo) + 1});
+                }
             });
         }).catch(error => {
             console.log("Error in request");
